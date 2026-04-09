@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lizard Controller</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: #151515;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: white;
+        }
+        canvas { display: block; }
+        .hud {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.6);
+            padding: 15px;
+            border-radius: 8px;
+            pointer-events: none;
+            border-left: 4px solid #4CAF50;
+        }
+        .keys {
+            display: inline-block;
+            margin-top: 10px;
+        }
+        .key {
+            display: inline-block;
+            padding: 4px 8px;
+            border: 1px solid #888;
+            border-radius: 4px;
+            font-size: 12px;
+            color: #ccc;
+        }
+    </style>
+</head>
+<body>
+
+<div class="hud">
+    <h3>Reptile Controller</h3>
+    <div>Use <strong>Arrow Keys</strong> to move.</div>
+    <div class="keys">
+        <span class="key">↑ Forward</span>
+        <span class="key">↓ Back</span>
+        <span class="key">← → Turn</span>
+    </div>
+</div>
+<canvas id="canvas"></canvas>
+
+<script>
+// --- CONFIGURATION ---
+const CONFIG = {
+    spineCount: 40,
+    spineSpacing: 8,
+    bodyWidth: 26,
+    legReach: 65,
+    legSpeed: 0.15
+};
+
+// --- INPUT HANDLING ---
+const keys = {
+    ArrowUp: false,
+    ArrowDown: false,
+    ArrowLeft: false,
+    ArrowRight: false
+};
+
+window.addEventListener('keydown', e => { if(keys.hasOwnProperty(e.code)) keys[e.code] = true; });
+window.addEventListener('keyup', e => { if(keys.hasOwnProperty(e.code)) keys[e.code] = false; });
+
+// --- PLAYER PHYSICS ---
+const player = {
+    x: window.innerWidth / 2,
+    y: window.innerHeight / 2,
+    angle: -Math.PI / 2, // Face Up
+    velocity: 0,
+    maxSpeed: 4,
+    acceleration: 0.2,
+    friction: 0.92,
+    turnSpeed: 0.06
+};
+
+function updatePlayerPhysics() {
+    // Turning
+    if (keys.ArrowLeft) player.angle -= player.turnSpeed;
+    if (keys.ArrowRight) player.angle += player.turnSpeed;
+
+    // Acceleration
+    if (keys.ArrowUp) player.velocity += player.acceleration;
+    else if (keys.ArrowDown) player.velocity -= player.acceleration;
+    
+    // Friction
+    player.velocity *= player.friction;
+
+    // Velocity Cap
+    if (Math.abs(player.velocity) < 0.01) player.velocity = 0;
+    if (player.velocity > player.maxSpeed) player.velocity = player.maxSpeed;
+    if (player.velocity < -player.maxSpeed/2) player.velocity = -player.maxSpeed/2;
+
+    // Apply Movement
+    player.x += Math.cos(player.angle) * player.velocity;
+    player.y += Math.sin(player.angle) * player.velocity;
+
+    // Screen Clamp
+    if (player.x < 0) player.x = 0;
+    if (player.x > width) player.x = width;
+    if (player.y < 0) player.y = 0;
+    if (player.y > height) player.y = height;
+}
+
+// --- SPINE SYSTEM ---
+class Spine {
+    constructor() {
+        this.joints = [];
+        this.angles = [];
+        // Init at center
+        for (let i = 0; i < CONFIG.spineCount; i++) {
+            this.joints.push({ x: player.x, y: player.y + i * CONFIG.spineSpacing });
+            this.angles.push(-Math.PI/2);
+        }
+    }
+
+    update() {
+        // 1. Head is locked to Player
+        // We smooth the head movement slightly to reduce jitter
+        const head = this.joints[0];
+        head.x = player.x;
+        head.y = player.y;
+        this.angles[0] = player.angle;
+
+        // 2. Procedural Following (Constraints)
+        for (let i = 1; i < this.joints.length; i++) {
+            const cur = this.joints[i];
+            const prev = this.joints[i-1];
+
+            let dx = prev.x - cur.x;
+            let dy = prev.y - cur.y;
+            let targetAngle = Math.atan2(dy, dx);
+
+            // Angle Constraint (The backbone limit)
+            // We clamp the angle difference relative to the PARENT segment
+            let prevAngle = this.angles[i-1];
+            let diff = targetAngle - prevAngle;
+            
+            // Unwrap angle
+            while (diff <= -Math.PI) diff += Math.PI*2;
+            while (diff > Math.PI) diff -= Math.PI*2;
+            
+            // Clamp (Limit bending)
+            const limit = 0.6; // Radian limit
+            if (diff > limit) targetAngle = prevAngle + limit;
+            if (diff < -limit) targetAngle = prevAngle - limit;
+
+            this.angles[i] = targetAngle;
+
+            // Position Constraint (Distance)
+            // Instead of dragging, we place 'cur' exactly 'spacing' behind 'prev'
+            cur.x = prev.x - Math.cos(targetAngle) * CONFIG.spineSpacing;
+            cur.y = prev.y - Math.sin(targetAngle) * CONFIG.spineSpacing;
+        }
+    }
+
+    draw(ctx) {
+        // Draw Skin Mesh
+        const leftPts = [];
+        const rightPts = [];
+
+        for(let i=0; i<this.joints.length; i++) {
+            const p = this.joints[i];
+            const a = this.angles[i];
+            
+            // Tapering Width
+            let w = CONFIG.bodyWidth;
+            if (i < 5) w = 10 + (i * 3); // Head flare
+            else if (i > this.joints.length - 15) w *= (this.joints.length - i) / 15; // Tail taper
+
+            // Perpendicular Normal
+            const nx = Math.cos(a - Math.PI/2) * w;
+            const ny = Math.sin(a - Math.PI/2) * w;
+
+            leftPts.push({x: p.x - nx, y: p.y - ny});
+            rightPts.push({x: p.x + nx, y: p.y + ny});
+        }
+
+        ctx.beginPath();
+        ctx.moveTo(leftPts[0].x, leftPts[0].y);
+        for(let i=1; i<leftPts.length; i++) ctx.lineTo(leftPts[i].x, leftPts[i].y);
+        for(let i=rightPts.length-1; i>=0; i--) ctx.lineTo(rightPts[i].x, rightPts[i].y);
+        ctx.closePath();
+        
+        ctx.fillStyle = '#4CAF50';
+        ctx.fill();
+        ctx.strokeStyle = '#2E7D32';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        // Eyes (Decoration)
+        const head = this.joints[0];
+        const ang = this.angles[0];
+        ctx.fillStyle = '#FFEB3B';
+        const eyeD = 10;
+        const eyeS = 4;
+        ctx.beginPath(); ctx.arc(head.x + Math.cos(ang-1)*eyeD, head.y + Math.sin(ang-1)*eyeD, eyeS, 0, 6.28); ctx.fill();
+        ctx.beginPath(); ctx.arc(head.x + Math.cos(ang+1)*eyeD, head.y + Math.sin(ang+1)*eyeD, eyeS, 0, 6.28); ctx.fill();
+    }
+}
+
+// --- LEG SYSTEM ---
+class Leg {
+    constructor(spine, index, isRight) {
+        this.spine = spine;
+        this.index = index;
+        this.side = isRight ? 1 : -1;
+        
+        this.femur = 30;
+        this.tibia = 30;
+        
+        this.foot = {x:0, y:0};
+        this.updateShoulder();
+        this.foot = { ...this.shoulder }; // Start at shoulder
+        
+        // Stepping Logic
+        this.isMoving = false;
+        this.stepStart = {x:0, y:0};
+        this.stepEnd = {x:0, y:0};
+        this.t = 0;
+    }
+
+    updateShoulder() {
+        const s = this.spine.joints[this.index];
+        const a = this.spine.angles[this.index];
+        const dist = 15; // Shoulder width from spine center
+        this.shoulder = {
+            x: s.x + Math.cos(a + Math.PI/2 * this.side) * dist,
+            y: s.y + Math.sin(a + Math.PI/2 * this.side) * dist
+        };
+        this.bodyAngle = a;
+    }
+
+    getIdealPos() {
+        // Calculate where foot SHOULD be relative to current body position
+        // Out to the side + slightly forward
+        const forwardOffset = 20;
+        const sideOffset = 35;
+        
+        const tx = this.shoulder.x + Math.cos(this.bodyAngle + Math.PI/2 * this.side) * sideOffset + Math.cos(this.bodyAngle) * forwardOffset;
+        const ty = this.shoulder.y + Math.sin(this.bodyAngle + Math.PI/2 * this.side) * sideOffset + Math.sin(this.bodyAngle) * forwardOffset;
+        return {x: tx, y: ty};
+    }
+
+    checkStep(allowed) {
+        if (this.isMoving) return;
+        
+        // Only step if we are moving significantly or stretched too far
+        const ideal = this.getIdealPos();
+        const dist = Math.hypot(this.foot.x - ideal.x, this.foot.y - ideal.y);
+        
+        if (dist > CONFIG.legReach && allowed) {
+            this.isMoving = true;
+            this.stepStart = { ...this.foot };
+            this.stepEnd = ideal;
+            this.t = 0;
+        }
+    }
+
+    update() {
+        this.updateShoulder();
+
+        if (this.isMoving) {
+            this.t += CONFIG.legSpeed;
+            if (this.t >= 1) {
+                this.t = 1;
+                this.isMoving = false;
+                this.foot = { ...this.stepEnd };
+            } else {
+                // Lerp
+                this.foot.x = this.stepStart.x + (this.stepEnd.x - this.stepStart.x) * this.t;
+                this.foot.y = this.stepStart.y + (this.stepEnd.y - this.stepStart.y) * this.t;
+            }
+        }
+
+        // Safety drag (if body moves too fast and leg gets left behind)
+        const maxDrag = 80;
+        const dragDist = Math.hypot(this.foot.x - this.shoulder.x, this.foot.y - this.shoulder.y);
+        if (dragDist > maxDrag) {
+            const angle = Math.atan2(this.foot.y - this.shoulder.y, this.foot.x - this.shoulder.x);
+            this.foot.x = this.shoulder.x + Math.cos(angle) * maxDrag;
+            this.foot.y = this.shoulder.y + Math.sin(angle) * maxDrag;
+        }
+    }
+
+    draw(ctx) {
+        // IK Calculation (Analytic 2-Bone)
+        const A = this.shoulder;
+        const B = this.foot;
+        const dist = Math.hypot(B.x - A.x, B.y - A.y);
+        
+        // Prevent mathematical explosion if target too far
+        const reach = Math.min(dist, this.femur + this.tibia - 0.1);
+        
+        const alpha = Math.acos((this.femur**2 + reach**2 - this.tibia**2) / (2*this.femur*reach)) || 0;
+        const baseAngle = Math.atan2(B.y - A.y, B.x - A.x);
+        
+        // Knee Direction Flip (Left legs bend one way, Right legs the other)
+        const kneeAngle = baseAngle + (alpha * (this.side === 1 ? -1 : 1)); // Note: Direction flipped for visual preference
+
+        const knee = {
+            x: A.x + Math.cos(kneeAngle) * this.femur,
+            y: A.y + Math.sin(kneeAngle) * this.femur
+        };
+
+        ctx.lineWidth = 8;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.strokeStyle = '#66BB6A';
+        
+        ctx.beginPath();
+        ctx.moveTo(A.x, A.y);
+        ctx.lineTo(knee.x, knee.y);
+        ctx.lineTo(B.x, B.y);
+        ctx.stroke();
+        
+        // Joints
+        ctx.fillStyle = '#388E3C';
+        ctx.beginPath(); ctx.arc(knee.x, knee.y, 4, 0, 6.28); ctx.fill();
+        ctx.fillStyle = '#1B5E20';
+        ctx.beginPath(); ctx.arc(B.x, B.y, 5, 0, 6.28); ctx.fill();
+    }
+}
+
+// --- MAIN LOOP ---
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+let width, height;
+
+function resize() {
+    width = window.innerWidth;
+    height = window.innerHeight;
+    canvas.width = width;
+    canvas.height = height;
+    // If player exists, clamp them
+    if(typeof player !== 'undefined') {
+        player.x = Math.min(width, Math.max(0, player.x));
+        player.y = Math.min(height, Math.max(0, player.y));
+    }
+}
+window.addEventListener('resize', resize);
+resize();
+
+const spine = new Spine();
+const legs = [
+    new Leg(spine, 5, false),  // FL
+    new Leg(spine, 5, true),   // FR
+    new Leg(spine, 25, false), // BL
+    new Leg(spine, 25, true)   // BR
+];
+
+function animate() {
+    ctx.fillStyle = '#222';
+    ctx.fillRect(0, 0, width, height);
+
+    // 1. Physics Input
+    updatePlayerPhysics();
+
+    // 2. Update Body
+    spine.update();
+
+    // 3. Update Legs (Gait Control)
+    // Check movement speed. If stopped, don't step (unless very stretched)
+    const isMoving = Math.abs(player.velocity) > 0.1 || keys.ArrowLeft || keys.ArrowRight;
+    
+    if (isMoving) {
+        const group1 = legs[0].isMoving || legs[3].isMoving;
+        const group2 = legs[1].isMoving || legs[2].isMoving;
+
+        legs[0].checkStep(!group2);
+        legs[3].checkStep(!group2);
+        legs[1].checkStep(!group1);
+        legs[2].checkStep(!group1);
+    }
+
+    // 4. Draw
+    legs.forEach(l => { l.update(); l.draw(ctx); });
+    spine.draw(ctx);
+
+    requestAnimationFrame(animate);
+}
+
+animate();
+</script>
+
+</body>
+</html>
