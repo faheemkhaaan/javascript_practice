@@ -12,7 +12,7 @@ const height = canvas.height = window.innerHeight;
 const gravity = 0.9;
 
 const p1 = new Point(new Vector(110, 110), 50);
-const p2 = new Point(new Vector(110, 110), 50);
+const p2 = new Point(new Vector(280, 150), 50);
 
 animte()
 function animte() {

@@ -15,12 +15,37 @@ class Point {
     }
     handleCollisionWithAPoint(point) {
         const dist = this.pos.distfrom(point.pos);
-        if (dist < point.radius + this.radius) {
+        const minDistance = point.radius + this.radius;
 
-            console.log('Collision detected');
+        if (dist <= minDistance) {
+            // 1. POSITION CORRECTION (Static Resolution)
+            // This stops them from overlapping
+            const diff = this.pos.sub(point.pos);
+            const unit = diff.normalize(); // The direction from point to this
+            const overlap = minDistance - dist;
+
+            // Move this point out of the collision half-way
+            // (Or fully if 'point' is static)
+            this.pos = this.pos.add(unit.mult(overlap));
+
+            // 2. VELOCITY RESOLUTION (The Bounce)
+            // Formula: v = v - 2 * (v ⋅ n) * n
+            // 'unit' is our normal (n)
+
+            const dot = this.speed.dot(unit);
+
+            // Only bounce if the point is actually moving TOWARDS the other point
+            if (dot < 0) {
+                const bounce = unit.mult(2 * dot);
+                this.speed = this.speed.sub(bounce);
+
+                // Optional: Add a bit of energy loss (restitution)
+                // this.speed = this.speed.mul(0.9); 
+            }
         }
     }
     update(p) {
+
 
         // this.speed
         this.pos = this.pos.add(this.speed);
