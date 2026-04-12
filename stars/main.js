@@ -11,22 +11,15 @@ const height = canvas.height = window.innerHeight;
 
 const gravity = 0.9;
 
-const p1 = new Point(new Vector(110, 110), 50);
-const p2 = new Point(new Vector(280, 150), 50);
-
-animte()
+const space = new Space()
 function animte() {
     clearCanvas()
     requestAnimationFrame(animte);
 
-    p1.draw(ctx);
-    p1.update(p2);
-
-    p2.draw(ctx);
-    p2.update(p1)
-
-
+    space.update();
+    space.draw(ctx);
 }
+animte()
 
 
 function clearCanvas() {

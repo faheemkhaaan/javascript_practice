@@ -3,7 +3,7 @@
 class Point {
     constructor(pos, radius) {
         this.pos = pos;
-        this.speed = new Vector(Math.random() * 7 + 3, Math.random() * 12 + 3)
+        this.speed = new Vector(Math.random() * 2 + 2, Math.random() * 2 + 2)
         this.friction = new Vector(0.95, 0.95);
         this.radius = radius;
     }
@@ -14,6 +14,8 @@ class Point {
         if (this.pos.y + this.radius >= height || this.pos.y - this.radius <= 0) this.speed.y *= -1;
     }
     handleCollisionWithAPoint(point) {
+        if (point === this) return;
+        if (!point) return;
         const dist = this.pos.distfrom(point.pos);
         const minDistance = point.radius + this.radius;
 
@@ -44,17 +46,32 @@ class Point {
             }
         }
     }
-    update(p) {
-
+    update(stars = []) {
 
         // this.speed
         this.pos = this.pos.add(this.speed);
         // this.pos.y += gravity;
 
         // this.speed = this.speed.mul(this.friction);
-        this.handleCollisionWithAPoint(p);
+        // this.pos = this.pos.mul(this.friction)
+        stars.forEach(s => this.handleCollisionWithAPoint(s))
+        // this.handleCollisionWithAPoint(p);
 
         this.handleWallCollision();
+    }
+
+    connectTo(ctx, stars) {
+        stars.forEach(s => this.connect(ctx, s));
+    }
+    connect(ctx, s) {
+        if (s === this) return;
+        if (!s) return;
+        const dist = this.pos.distfrom(s.pos);
+        if (dist > 150) return;
+        ctx.beginPath()
+        ctx.moveTo(s.pos.x, s.pos.y)
+        ctx.lineTo(this.pos.x, this.pos.y);
+        ctx.stroke();
     }
     draw(ctx) {
         ctx.beginPath();
