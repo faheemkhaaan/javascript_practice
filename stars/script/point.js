@@ -42,7 +42,7 @@ class Point {
                 this.speed = this.speed.sub(bounce);
 
                 // Optional: Add a bit of energy loss (restitution)
-                // this.speed = this.speed.mul(0.9); 
+                // this.speed = this.speed.mul(0.9);
             }
         }
     }
@@ -50,10 +50,7 @@ class Point {
 
         // this.speed
         this.pos = this.pos.add(this.speed);
-        // this.pos.y += gravity;
 
-        // this.speed = this.speed.mul(this.friction);
-        // this.pos = this.pos.mul(this.friction)
         stars.forEach(s => this.handleCollisionWithAPoint(s))
         // this.handleCollisionWithAPoint(p);
 

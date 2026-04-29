@@ -5,14 +5,27 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Document</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
 
 <body>
-
-
+    <div id="ui-overlay">
+        <h1>Bouncing Ball Simulator</h1>
+        <div class="stat">Fish: <span id="ball-count">0</span></div>
+        <div class="control">
+            <label>Size:</label>
+            <input type="range" id="size-slider" min="2" max="25" value="6">
+        </div>
+    </div>
     <canvas id="myCanvas"></canvas>
 
+    <script src="vector.js"></script>
+    <script src="grid.js"></script>
+    <script src="fish.js"></script>
+    <script src="physics.js"></script>
     <script src="main.js"></script>
 </body>
 

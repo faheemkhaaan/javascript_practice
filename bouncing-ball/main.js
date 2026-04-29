@@ -1,116 +1,80 @@
+/** @type {HTMLCanvasElement} */
+const canvas = document.getElementById('myCanvas');
+const ctx = canvas.getContext('2d');
+const ballCountDisplay = document.getElementById('ball-count');
+const sizeSlider = document.getElementById('size-slider');
 
+let width, height;
+let entities = [];
+let grid;
+let physics;
 
+// Configuration
+let currentRadius = parseInt(sizeSlider.value);
+const ENTITY_COUNT = 30;
+const CELL_SIZE = 60;
 
+const colorPalettes = [
+    { r: 255, g: 99, b: 71 },
+    { r: 30, g: 144, b: 255 },
+    { r: 50, g: 205, b: 50 },
+    { r: 255, g: 215, b: 0 }
+];
 
-class Canvas {
-    constructor() {
-        /** @type {HTMLCanvasElement} */
-        this.canvas = myCanvas;
-        this.width = this.canvas.width = window.innerWidth;
-        this.height = this.canvas.height = window.innerHeight;
-        this.ctx = this.canvas.getContext("2d");
+let preRenderedSprites = [];
+
+function init() {
+    resize();
+    entities = [];
+    preRenderedSprites = colorPalettes.map(color => Fish.preRenderFish(color));
+
+    for (let i = 0; i < ENTITY_COUNT; i++) {
+        const x = Math.random() * width;
+        const y = Math.random() * height;
+        const colorIdx = Math.floor(Math.random() * colorPalettes.length);
+        const sprite = preRenderedSprites[colorIdx];
+        const radius = currentRadius * (0.8 + Math.random() * 0.4);
+        entities.push(new Fish(x, y, colorPalettes[colorIdx], sprite, radius));
     }
-
-    clearWhole() {
-        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height)
-    }
-
+    ballCountDisplay.innerText = ENTITY_COUNT.toLocaleString();
 }
 
-class InfoBar {
-    constructor() {
-
-    }
-    #box() {
-        this.container = document.createElement('table');
-
-    }
+function resize() {
+    width = canvas.width = window.innerWidth;
+    height = canvas.height = window.innerHeight;
+    grid = new Grid(width, height, CELL_SIZE);
+    physics = new Physics(grid); // Re-initialize physics with new grid on resize
 }
 
-class EventListener {
-    constructor() {
-        this.mousePos = { x: null, y: null };
-
-        this.#addEventistener();
-    }
-
-    #addEventistener() {
-        document.addEventListener('mousedown', this.onMouseDown.bind(this));
-
-    }
-
-    onMouseDown() {
-
-    }
-    onMouseUp() {
-
-    }
-}
-
-class BouncingBall {
-    constructor(pos) {
-        this.pos = pos;
-        this.radius = 50;
-        this.speed = { x: 0, y: 0 };
-        this.maxSpeed = 4;
-        this.acceleration = 0.5;
-        this.friction = 0.5;
-        this.event = new EventListener();
-    }
-
-    update() {
-
-        this.speed.x += this.acceleration;
-        this.speed.y += 0.09;
-
-        this.pos.x += this.speed.x;
-        this.pos.y += this.speed.y;
-
-        this.speed.x = Math.max(-this.maxSpeed, Math.min(this.speed.x, this.maxSpeed));
-
-        // this.pos.y = Math.max(0, Math.min(this.pos.x, c.height));
-
-        if (this.pos.y >= c.height * 0.8) {
-            this.speed.y *= -1;
-        }
-
-
-        if (this.pos.x >= c.width - this.radius) {
-            this.speed.x *= -1;
-            this.acceleration *= -1;
-        }
-        if (this.pos.x <= this.radius) {
-            this.speed.x *= -1;
-            this.acceleration *= -1;
-        }
-
-        this.speed.x *= this.friction;
-
-    }
-
-    /**
-     * 
-     * @param {CanvasRenderingContext2D} ctx 
-    */
-    draw(ctx) {
-        ctx.beginPath();
-        ctx.arc(this.pos.x, this.pos.y, this.radius, 0, Math.PI * 2);
-        ctx.fill();
-    }
-}
-
-const c = new Canvas();
-const ball = new BouncingBall({ x: 50, y: 50 });
-
-
-animate();
 function animate() {
-    c.clearWhole();
+    // 1. Scene Background
+    ctx.fillStyle = 'rgba(10, 10, 12, 0.4)';
+    ctx.fillRect(0, 0, width, height);
 
-    ball.update();
-    ball.draw(c.ctx);
+    // 2. Physics Simulation Step
+    physics.step(entities);
 
+    // 3. Rendering Step
+    for (let i = 0; i < entities.length; i++) {
+        entities[i].draw(ctx);
+    }
 
     requestAnimationFrame(animate);
-
 }
+
+// Interaction: Dynamic size update
+sizeSlider.addEventListener('input', (e) => {
+    const newBaseRadius = parseInt(e.target.value);
+    const ratio = newBaseRadius / currentRadius;
+
+    for (let i = 0; i < entities.length; i++) {
+        const fish = entities[i];
+        fish.radius *= ratio;
+        fish.viewDistance = fish.radius * 10;
+    }
+    currentRadius = newBaseRadius;
+});
+
+window.addEventListener('resize', resize);
+init();
+requestAnimationFrame(animate);
