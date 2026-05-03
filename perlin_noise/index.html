@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Perlin Terrain Engine</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+    <div id="ui-container">
+        <div class="glass-panel">
+            <h1>Terrain Engine</h1>
+            <p class="subtitle">Procedural landmass generation using multi-octave Perlin noise.</p>
+
+            <div class="control-group">
+                <label for="noise_scale">Zoom / Scale <span id="scale_val">0.02</span></label>
+                <input type="range" max="0.1" min="0.001" step="0.001" id="noise_scale" value="0.02">
+            </div>
+
+            <div class="control-group">
+                <label for="octaves">Octaves <span id="octave_val">6</span></label>
+                <input type="range" max="12" min="1" step="1" id="octaves" value="6">
+            </div>
+
+            <div class="control-group">
+                <label for="persistence">Persistence <span id="pers_val">0.5</span></label>
+                <input type="range" max="0.9" min="0.1" step="0.05" id="persistence" value="0.5">
+            </div>
+
+            <div class="control-group">
+                <label for="sea_level">Sea Level <span id="sea_val">0.45</span></label>
+                <input type="range" max="0.8" min="0.2" step="0.01" id="sea_level" value="0.45">
+            </div>
+
+            <button id="regenerate">Generate New Seed</button>
+
+            <div class="info-panel">
+                Using <strong>Canvas API</strong> & <strong>Custom Perlin Noise</strong> algorithm.
+            </div>
+        </div>
+    </div>
+
+    <canvas id="myCanvas"></canvas>
+
+    <script src="perlin-noise.js"></script>
+    <script src="script.js"></script>
+</body>
+
+</html>
