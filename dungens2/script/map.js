@@ -5,7 +5,7 @@ const hallWidth = 40 * scale
 class DungenMap {
     constructor() {
         this.root = new Cell(0, 0, width * scale, height * scale);
-        this.minRooms = 50;
+        this.minRooms = 60;
         this.minDimensions = 2 * gridSize;
         /**
          * @type {Cell[]}

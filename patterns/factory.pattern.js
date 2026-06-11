@@ -2,11 +2,12 @@
 
 
 class FactoryManager {
-    constructor(...args) {
+    constructor() {
         this.facotories = new Map();
+    }
 
-        args.forEach(a => this.facotories.set(a.type, a));
-        console.log(this.facotories)
+    addStratagy(name, stratagy) {
+        this.facotories.set(name, stratagy);
     }
 
     getFactory(type) {
@@ -17,32 +18,26 @@ class FactoryManager {
 class Factory1 {
     constructor() { }
 
-    get type() {
-        return "factory1";
-    }
     hello() {
-        console.log("Hello from", this.type)
+        console.log("Hello from", Factory1.name)
     }
 }
 
 class Factory2 {
     constructor() { }
 
-    get type() {
-        return "factory2";
-    }
 
     hello() {
         console.log("Hello from", this.type)
     }
 };
 
-const manager = new FactoryManager(
-    new Factory1(),
-    new Factory2()
-);
+const manager = new FactoryManager();
 
+manager.addStratagy(Factory1.name, Factory1);
+manager.addStratagy(Factory2.name, Factory2);
 
-const factory = manager.getFactory("factory1");
-console.log(factory)
-factory.hello();
+const Strategy = manager.getFactory(Factory1.name);
+
+const factory1 = new Strategy();
+factory1.hello()

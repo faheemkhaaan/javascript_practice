@@ -21,7 +21,8 @@ function animate() {
     wall.draw(ctx);
 
 }
-
+// dot product x1 * x2 + y1 * y2
+// cross product x2 * y1 - y2 * x1 
 
 
 function getCanvas() {
